@@ -1,0 +1,81 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://101.132.163.169:400/weather_push
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      username: postgres
+      password: postgres
+      minimum-idle: 2
+      maximum-pool-size: 5
+      auto-commit: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      # ????entity???
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        temp:
+          # ?????, ??jdbc????api????
+          use_jdbc_metadata_defaults: false
+        jdbc:
+          # ??Transactional??????????????????????????????
+          # ??????, ???OOM, JPA??????????
+          # ?????
+          # begin transaction --> ????Transactional??????
+          # entityManager.flush(); -> ?????
+          # entityManager.clear(); -> ??????
+          # end transaction
+          batch_size: 500
+          # Similar to batch inserts, we can group several update statements and send them to the database in one go.
+          batch_versioned_data: true
+          order_updates: true
+        order_inserts: true
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+    serialization:
+      fail-on-empty-beans: false
+    default-property-inclusion: always
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 100MB
+
+server:
+  servlet:
+    session:
+      timeout: 2h
+  port: 8081
+
+wx:
+  app-id: wx7a6b4fc11325bcc1
+  app-secret: 5e4c07e08e7924905d7784aa41f31d3f
+  get-access-token-url: https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential
+  send-msg-url: https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=
+
+api:
+  #百度查询天气API
+  baidu-weather-url: https://api.map.baidu.com/weather/v1/
+  baidu-weather-key: tNFuoaSl5b5KH3dbfvzHIPa6Gndklejk
+  #天行API秘钥
+  tian-api-key: a69930113f86d86a07a08a71c3e72bb9
+  #天行每日英语API
+  tian-api-everyday-url: https://apis.tianapi.com/everyday/index
+  #天行英语一句话API
+  tian-api-en-sentence-url: https://apis.tianapi.com/ensentence/index
+  #天行古代情诗API
+  tian-api-qing-shi-url: https://apis.tianapi.com/qingshi/index
+  #天行土味情话API
+  tian-api-say-love-url: https://apis.tianapi.com/saylove/index
+  #天行早安心语API
+  tian-api-zao-an-url: https://apis.tianapi.com/zaoan/index
+  #hito 一句名言
+  hito-url: https://v1.hitokoto.cn/?c=j

@@ -1,0 +1,253 @@
+package com.lwx.weatherpush.service.impl;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.lwx.weatherpush.config.ApiConfig;
+import com.lwx.weatherpush.config.WxConfig;
+import com.lwx.weatherpush.entity.User;
+import com.lwx.weatherpush.repository.UserRepository;
+import com.lwx.weatherpush.service.WeatherPushService;
+import com.lwx.weatherpush.util.CacheUtils;
+import com.lwx.weatherpush.util.HttpClientUtils;
+import com.lwx.weatherpush.util.PreconditionUtils;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.security.SecureRandom;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Random;
+
+/**
+ * @author LiWenXin
+ * @date 2022/12/12
+ */
+@Slf4j
+@Service
+public class WeatherPushServiceImpl implements WeatherPushService {
+
+    private UserRepository userRepository;
+
+    private WxConfig wxConfig;
+    private ApiConfig apiConfig;
+    private Random random;
+
+    @Override
+    public boolean push(String account) {
+        PreconditionUtils.checkNotBlank(account, "微信号为空！");
+        User user = findByAccount(account);
+
+        //推送内容
+        JSONObject pushContent = new JSONObject();
+        pushContent.put("name", user.getName());
+        pushContent.put("touser", user.getAccount());
+        pushContent.put("template_id", user.getTemplateId());
+
+        JSONObject data = new JSONObject();
+        JSONObject weather = getWeather(user.getCity());
+        JSONObject result = weather.getJSONObject("result");
+        String currentDate = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+        JSONObject today = new JSONObject();
+        for (Object forecast : result.getJSONArray("forecasts")) {
+            JSONObject e = (JSONObject) forecast;
+            if (currentDate.equals(e.getString("date"))) {
+                today = e;
+                break;
+            }
+        }
+        //日期
+        data.put("date", formatValue(today.getString("date") + " " + today.getString("week")));
+        //城市
+        data.put("city", formatValue(result.getJSONObject("location").getString("name")));
+        //天气
+        JSONObject now = result.getJSONObject("now");
+        data.put("weather", formatValue(now.getString("text")));
+        data.put("wind_dir", formatValue(now.getString("wind_dir")));
+        data.put("wind_class", formatValue(now.getString("wind_class")));
+        //气温
+        data.put("now_temperature", formatValue(now.get("temp") + "℃"));
+        data.put("max_temperature", formatValue(today.getString("high") + "℃"));
+        data.put("min_temperature", formatValue(today.getString("low") + "℃"));
+        //名言
+        setSaying(data);
+        //纪念日
+        //自己的生日
+        data.put("self_age", formatValue(getAge(user.getBirthday())));
+        data.put("self_birthday_remain", formatValue(formatDate(user.getBirthday())));
+
+        pushContent.put("data", data);
+
+        //发送信息
+        log.info("开始给用户 " + user.getName() + " 进行推送！");
+        String response = HttpClientUtils.doPost(wxConfig.getSendMsgUrl() + CacheUtils.getAccessToken(), pushContent, null);
+        log.info("推送信息：" + pushContent.toJSONString());
+        log.info("推送结果：" + response);
+
+        return true;
+    }
+
+    @Override
+    public boolean pushAll() {
+        List<User> userList = userRepository.findAll();
+        for (User user : userList) {
+            push(user.getAccount());
+        }
+        return false;
+    }
+
+    @Override
+    public JSONObject getWeather(String districtId) {
+        PreconditionUtils.checkNotBlank(districtId, "请输入区县的行政区划编码！");
+        String url = apiConfig.getBaiduWeatherUrl() + "?data_type=all&ak=" + apiConfig.getBaiduWeatherKey() + "&district_id=" + districtId;
+        log.info("query weather url：" + url);
+        String response = HttpClientUtils.doGet(url, null);
+        log.info("query weather response：" + response);
+        return JSON.parseObject(response);
+    }
+
+    private void setSaying(JSONObject data) {
+        String content = "content";
+        JSONObject yy = getYy();
+        data.put("hitokoto", formatValue(yy.getString("hitokoto")));
+        JSONObject tianEnSentence = getTianEnSentence();
+        //天行英语一句话
+        data.put("en_sentence_en", formatValue(tianEnSentence.getString("en")));
+        data.put("en_sentence_zh", formatValue(tianEnSentence.getString("zh")));
+        //天行古代情诗
+        JSONObject tianQingShi = getTianQingShi();
+        data.put("qing_shi", formatValue(tianQingShi.getString(content)));
+        //天行土味情话
+        JSONObject tianSayLove = getTianSayLove();
+        data.put("say_love", formatValue(tianSayLove.getString(content)));
+        //天行早安心语
+        JSONObject tianZaoAn = getTianZaoAn();
+        data.put("zao_an", formatValue(tianZaoAn.getString(content)));
+    }
+
+    private JSONObject getYy() {
+        return JSON.parseObject(HttpClientUtils.doGet(apiConfig.getHitoUrl(), null));
+    }
+
+    private JSONObject getTianEnSentence() {
+        String url = apiConfig.getTianApiEnSentenceUrl() + getTianApiKey();
+        log.info("获取天行API英语一句话！");
+        String response = HttpClientUtils.doGet(url, null);
+        log.info("天行API英语一句话结果：" + response);
+        return getTianApiResult(response);
+    }
+
+    private JSONObject getTianQingShi() {
+        String url = apiConfig.getTianApiQingShiUrl() + getTianApiKey();
+        log.info("获取天行API古代情诗！");
+        String response = HttpClientUtils.doGet(url, null);
+        log.info("天行API古代情诗结果：" + response);
+        return getTianApiResult(response);
+    }
+
+    private JSONObject getTianSayLove() {
+        String url = apiConfig.getTianApiSayLoveUrl() + getTianApiKey();
+        log.info("获取天行API土味情话！");
+        String response = HttpClientUtils.doGet(url, null);
+        log.info("天行API土味情话结果：" + response);
+        return getTianApiResult(response);
+    }
+
+    private JSONObject getTianZaoAn() {
+        String url = apiConfig.getTianApiZaoAnUrl() + getTianApiKey();
+        log.info("获取天行API早安心语！");
+        String response = HttpClientUtils.doGet(url, null);
+        log.info("天行API早安心语结果：" + response);
+        return getTianApiResult(response);
+    }
+
+    private JSONObject getTianApiResult(String response) {
+        return JSON.parseObject(response).getJSONObject("result");
+    }
+
+    private String getTianApiKey() {
+        return "?key=" + apiConfig.getTianApiKey();
+    }
+
+    private User findByAccount(String account) {
+        return userRepository.findByAccount(account).orElseThrow(PreconditionUtils.newBusinessException("微信号不存在：" + account));
+    }
+
+    @SneakyThrows
+    private Integer getAge(String birthDay) {
+        Calendar current = Calendar.getInstance();
+        current.setTime(new Date());
+        Calendar birth = Calendar.getInstance();
+        birth.setTime(new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").parse(birthDay + " 00:00:00"));
+        return current.get(Calendar.YEAR) - birth.get(Calendar.YEAR) + 1;
+    }
+
+    //封装json
+    private JSONObject formatValue(Object value) {
+        JSONObject json = new JSONObject();
+        json.put("value", value);
+        json.put("color", randomColor());
+        return json;
+    }
+
+    @SneakyThrows
+    private Long formatDate(String target) {
+        if (StringUtils.isEmpty(target)) {
+            return null;
+        }
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        DateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+
+        String current = dateFormat.format(new Date());
+        target = current.split("-")[0] + target.substring(4);
+
+        Calendar targetCalendar = Calendar.getInstance();
+        targetCalendar.setTime(datetimeFormat.parse(target + " 00:00:00"));
+        Calendar currentCalender = Calendar.getInstance();
+        currentCalender.setTime(datetimeFormat.parse(current + " 00:00:00"));
+        if (currentCalender.compareTo(targetCalendar) > 0) {
+            targetCalendar.add(Calendar.YEAR, 1);
+        }
+        return Math.abs((targetCalendar.getTime().getTime() - currentCalender.getTime().getTime()) / 86400000);
+    }
+
+    private String randomColor() {
+        String red = Integer.toHexString(random.nextInt(256));
+        red = red.length() == 1 ? "0" + red : red;
+        red = red.toUpperCase();
+        String green = Integer.toHexString(random.nextInt(256));
+        green = green.length() == 1 ? "0" + green : green;
+        green = green.toUpperCase();
+        String blue = Integer.toHexString(random.nextInt(256));
+        blue = blue.length() == 1 ? "0" + blue : blue;
+        blue = blue.toUpperCase();
+        return "#" + red + green + blue;
+    }
+
+    @Autowired
+    public void setUserRepository(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    @Autowired
+    public void setWxConfig(WxConfig wxConfig) {
+        this.wxConfig = wxConfig;
+    }
+
+    @Autowired
+    public void setApiConfig(ApiConfig apiConfig) {
+        this.apiConfig = apiConfig;
+    }
+
+    @Autowired
+    @SneakyThrows
+    public void setRandom() {
+        this.random = SecureRandom.getInstanceStrong();
+    }
+
+}
