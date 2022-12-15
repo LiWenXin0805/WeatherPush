@@ -29,6 +29,8 @@ public class ApiConfig {
 
     private String tianApiZaoAnUrl;
 
+    private String tianApiCaiHongPiUrl;
+
     private String hitoUrl;
 
 }

@@ -11,7 +11,6 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      # ????entity???
       ddl-auto: update
       naming:
         physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
@@ -20,16 +19,8 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
         temp:
-          # ?????, ??jdbc????api????
           use_jdbc_metadata_defaults: false
         jdbc:
-          # ??Transactional??????????????????????????????
-          # ??????, ???OOM, JPA??????????
-          # ?????
-          # begin transaction --> ????Transactional??????
-          # entityManager.flush(); -> ?????
-          # entityManager.clear(); -> ??????
-          # end transaction
           batch_size: 500
           # Similar to batch inserts, we can group several update statements and send them to the database in one go.
           batch_versioned_data: true
@@ -77,5 +68,7 @@ api:
   tian-api-say-love-url: https://apis.tianapi.com/saylove/index
   #天行早安心语API
   tian-api-zao-an-url: https://apis.tianapi.com/zaoan/index
+  #天行彩虹屁API
+  tian-api-cai-hong-pi-url: https://apis.tianapi.com/caihongpi/index
   #hito 一句名言
   hito-url: https://v1.hitokoto.cn/?c=j

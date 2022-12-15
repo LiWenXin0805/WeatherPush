@@ -1,7 +1,5 @@
 package com.lwx.weatherpush.service;
 
-import com.alibaba.fastjson.JSONObject;
-
 /**
  * @author LiWenXin
  * @date 2022/12/12
@@ -22,11 +20,5 @@ public interface WeatherPushService {
      * @return 是否推送成功
      */
     boolean pushAll();
-
-    /**
-     * @param districtId 区县的行政区划编码，和location二选一
-     * @return 全量的返回内容
-     */
-    JSONObject getWeather(String districtId);
 
 }

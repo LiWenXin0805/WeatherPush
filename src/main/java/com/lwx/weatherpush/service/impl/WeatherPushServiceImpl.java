@@ -79,7 +79,7 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         //纪念日
         //自己的生日
         data.put("self_age", formatValue(getAge(user.getBirthday())));
-        data.put("self_birthday_remain", formatValue(formatDate(user.getBirthday())));
+        data.put("self_birthday_remain", formatValue(countDown(user.getBirthday())));
 
         pushContent.put("data", data);
 
@@ -101,8 +101,13 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         return false;
     }
 
-    @Override
-    public JSONObject getWeather(String districtId) {
+    /**
+     * 从百度地图API获取天气
+     *
+     * @param districtId 区县的行政区划编码，和location二选一
+     * @return 全量的返回内容
+     */
+    private JSONObject getWeather(String districtId) {
         PreconditionUtils.checkNotBlank(districtId, "请输入区县的行政区划编码！");
         String url = apiConfig.getBaiduWeatherUrl() + "?data_type=all&ak=" + apiConfig.getBaiduWeatherKey() + "&district_id=" + districtId;
         log.info("query weather url：" + url);
@@ -111,6 +116,11 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         return JSON.parseObject(response);
     }
 
+    /**
+     * 设置名言、情话等
+     *
+     * @param data 推送数据
+     */
     private void setSaying(JSONObject data) {
         String content = "content";
         JSONObject yy = getYy();
@@ -128,6 +138,9 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         //天行早安心语
         JSONObject tianZaoAn = getTianZaoAn();
         data.put("zao_an", formatValue(tianZaoAn.getString(content)));
+        //天行彩虹屁
+        JSONObject tianCaiHongPi = getTianCaiHongPi();
+        data.put("cai_hong_pi", formatValue(tianCaiHongPi.getString(content)));
     }
 
     private JSONObject getYy() {
@@ -166,6 +179,14 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         return getTianApiResult(response);
     }
 
+    private JSONObject getTianCaiHongPi() {
+        String url = apiConfig.getTianApiCaiHongPiUrl() + getTianApiKey();
+        log.info("获取天行API彩虹屁！");
+        String response = HttpClientUtils.doGet(url, null);
+        log.info("天行API彩虹屁结果：" + response);
+        return getTianApiResult(response);
+    }
+
     private JSONObject getTianApiResult(String response) {
         return JSON.parseObject(response).getJSONObject("result");
     }
@@ -180,6 +201,9 @@ public class WeatherPushServiceImpl implements WeatherPushService {
 
     @SneakyThrows
     private Integer getAge(String birthDay) {
+        if (StringUtils.isEmpty(birthDay)) {
+            return 0;
+        }
         Calendar current = Calendar.getInstance();
         current.setTime(new Date());
         Calendar birth = Calendar.getInstance();
@@ -196,9 +220,9 @@ public class WeatherPushServiceImpl implements WeatherPushService {
     }
 
     @SneakyThrows
-    private Long formatDate(String target) {
+    private Long countDown(String target) {
         if (StringUtils.isEmpty(target)) {
-            return null;
+            return 0L;
         }
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         DateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
