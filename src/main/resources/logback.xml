@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- milliseconds, seconds, minutes, or hours, 设置自动重读配置  -->
+<configuration scan="true" scanPeriod="15 seconds">
+    <property name="log.path" value="logs"/>
+    <property name="log.level" value="INFO"/>
+    <property name="log.pattern" value="%d{yyyy-MM-dd HH:mm:ss} | %-5p | [%thread] %logger{5}:%L - %msg%n"/>
+    <property name="logfile.prefix" value="weather-push"/>
+    
+    <!-- 输出日志到控制台 -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${log.pattern}</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- 输出日志到文件 -->
+    <appender name="RollingFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${log.path}/weather-push/${logfile.prefix}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${log.path}/weather-push/${logfile.prefix}.log.%d{yyyy-MM-dd}.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${log.pattern}</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- 另外输出 error 日志到文件 -->
+    <appender name="ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <file>${log.path}/weather-push/error/${logfile.prefix}-error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${log.path}/weather-push/error/${logfile.prefix}-error.log.%d{yyyy-MM-dd}.gz
+            </fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${log.pattern}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 另外输出 aop 的错误日志到文件 -->
+    <appender name="AOP" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <file>${log.path}/weather-push/aop/aop.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${log.path}/weather-push/aop/aop.log.%d{yyyy-MM-dd}.gz
+            </fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${log.pattern}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 输出 JPA SQL和参数到控制台和文件 -->
+    <!--<logger name="org.hibernate.SQL" level="TRACE" additivity="false">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="RollingFILE"/>
+    </logger>
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="RollingFILE"/>
+    </logger>-->
+    <!-- 输出 aop 的错误日志到文件 -->
+    <logger name="com.lwx.weatherpush.aop" level="INFO">
+        <appender-ref ref="AOP"/>
+    </logger>
+    
+    <!--  限制所有的日志  -->
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="RollingFILE"/>
+        <appender-ref ref="ERROR"/>
+    </root>
+
+</configuration>
