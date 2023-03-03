@@ -43,7 +43,7 @@ public class User implements Serializable {
     @ApiModelProperty("爱称")
     private String petName;
 
-    @ApiModelProperty("问候语")
+    @ApiModelProperty("问候语，问候语中用英文问号?作为占位符代替爱称")
     private String greeting;
 
     @ApiModelProperty("所在城市代码")
