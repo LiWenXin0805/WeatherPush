@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * @author LiWenXin
  * @date 2022/12/13
@@ -32,8 +34,8 @@ public class WeatherPushController {
 
     @PutMapping("/push/all")
     @ApiOperation("给全部用户推送消息接口")
-    public RestResponse<Boolean> pushAll() {
-        return RestResponse.ok(weatherPushService.pushAll());
+    public RestResponse<List<String>> pushAll(@RequestParam("account") @ApiParam("用户ID") List<String> account) {
+        return RestResponse.ok(weatherPushService.pushAll(account));
     }
 
 }

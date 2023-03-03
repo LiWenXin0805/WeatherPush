@@ -7,20 +7,23 @@ import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.GenericGenerator;
 
-import javax.persistence.*;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Table;
 import java.io.Serializable;
 
 /**
  * @author LiWenXin
- * @date 2022/12/10
+ * @date 2023/3/3
  */
 @Data
 @ToString
 @Entity
-@Table(name = "t_system_user")
+@Table(name = "t_memorial_day")
 @DynamicInsert
 @DynamicUpdate
-public class User implements Serializable {
+public class MemorialDay implements Serializable {
 
     @Id
     @GeneratedValue(generator = "idGenerator")
@@ -31,26 +34,11 @@ public class User implements Serializable {
     @ApiModelProperty("微信号")
     private String account;
 
-    @ApiModelProperty("微信昵称")
+    @ApiModelProperty("纪念日名称")
     private String name;
 
-    @ApiModelProperty("corn表达式")
-    private String corn;
-
-    @ApiModelProperty("模板ID")
-    private String templateId;
-
-    @ApiModelProperty("爱称")
-    private String petName;
-
-    @ApiModelProperty("问候语")
-    private String greeting;
-
-    @ApiModelProperty("所在城市代码")
-    private String city;
-
-    @ApiModelProperty("生日")
-    private String birthday;
+    @ApiModelProperty("纪念日日期")
+    private String date;
 
     private static final long serialVersionUID = 1L;
 

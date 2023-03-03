@@ -15,14 +15,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.security.SecureRandom;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 /**
  * @author LiWenXin
@@ -43,13 +41,60 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         PreconditionUtils.checkNotBlank(account, "微信号为空！");
         User user = findByAccount(account);
 
+        //设置推送数据
+        JSONObject data = new JSONObject();
+        //问候语
+        setGreeting(data, user);
+        //日期、城市、天气、气温
+        setWeather(data, user);
+        //名言
+        setSaying(data);
+        //生日
+        setBirthday(data, user);
+        //纪念日
+
         //推送内容
         JSONObject pushContent = new JSONObject();
         pushContent.put("name", user.getName());
         pushContent.put("touser", user.getAccount());
         pushContent.put("template_id", user.getTemplateId());
+        pushContent.put("data", data);
 
-        JSONObject data = new JSONObject();
+        //推送
+        log.info("开始给用户 " + user.getName() + " 进行推送！");
+        String response = HttpClientUtils.doPost(wxConfig.getSendMsgUrl() + CacheUtils.getAccessToken(), pushContent, null);
+        log.info("推送信息：" + pushContent.toJSONString());
+        log.info("推送结果：" + response);
+        return true;
+    }
+
+    @Override
+    public List<String> pushAll(List<String> accounts) {
+        List<User> userList;
+        if (CollectionUtils.isEmpty(accounts)) {
+            userList = userRepository.findAll();
+        } else {
+            userList = userRepository.findAllByAccountIn(accounts);
+        }
+        accounts.clear();
+        for (User user : userList) {
+            try {
+                push(user.getAccount());
+            } catch (Exception e) {
+                log.error("定时推送 " + user.getName() + " 时出现异常！");
+                log.error(e.getMessage(), e);
+                accounts.add(user.getAccount());
+            }
+        }
+        return accounts;
+    }
+
+
+    private void setGreeting(JSONObject data, User user) {
+        data.put("greeting", formatValue(user.getGreeting().replace("?", user.getPetName())));
+    }
+
+    private void setWeather(JSONObject data, User user) {
         JSONObject weather = getWeather(user.getCity());
         JSONObject result = weather.getJSONObject("result");
         String currentDate = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
@@ -74,31 +119,38 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         data.put("now_temperature", formatValue(now.get("temp") + "℃"));
         data.put("max_temperature", formatValue(today.getString("high") + "℃"));
         data.put("min_temperature", formatValue(today.getString("low") + "℃"));
-        //名言
-        setSaying(data);
-        //纪念日
-        //自己的生日
-        data.put("self_age", formatValue(getAge(user.getBirthday())));
-        data.put("self_birthday_remain", formatValue(countDown(user.getBirthday())));
-
-        pushContent.put("data", data);
-
-        //发送信息
-        log.info("开始给用户 " + user.getName() + " 进行推送！");
-        String response = HttpClientUtils.doPost(wxConfig.getSendMsgUrl() + CacheUtils.getAccessToken(), pushContent, null);
-        log.info("推送信息：" + pushContent.toJSONString());
-        log.info("推送结果：" + response);
-
-        return true;
     }
 
-    @Override
-    public boolean pushAll() {
-        List<User> userList = userRepository.findAll();
-        for (User user : userList) {
-            push(user.getAccount());
-        }
-        return false;
+    /**
+     * 设置名言、情话等
+     *
+     * @param data 推送数据
+     */
+    private void setSaying(JSONObject data) {
+        String content = "content";
+        JSONObject yy = getYy();
+        data.put("hitokoto", formatValue(yy.getString("hitokoto")));
+        //天行英语一句话
+        JSONObject tianEnSentence = getTianEnSentence();
+        data.put("en_sentence_en", formatValue(tianEnSentence.getString("en")));
+        data.put("en_sentence_zh", formatValue(tianEnSentence.getString("zh")));
+        //天行古代情诗
+        JSONObject tianQingShi = getTianQingShi();
+        data.put("qing_shi", formatValue(tianQingShi.getString(content)));
+        //天行土味情话
+        JSONObject tianSayLove = getTianSayLove();
+        data.put("say_love", formatValue(tianSayLove.getString(content)));
+        //天行早安心语
+        JSONObject tianZaoAn = getTianZaoAn();
+        data.put("zao_an", formatValue(tianZaoAn.getString(content)));
+        //天行彩虹屁
+        JSONObject tianCaiHongPi = getTianCaiHongPi();
+        data.put("cai_hong_pi", formatValue(tianCaiHongPi.getString(content)));
+    }
+
+    private void setBirthday(JSONObject data, User user) {
+        data.put("self_age", formatValue(getAge(user.getBirthday())));
+        data.put("self_birthday_remain", formatValue(countDown(user.getBirthday())));
     }
 
     /**
@@ -114,33 +166,6 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         String response = HttpClientUtils.doGet(url, null);
         log.info("query weather response：" + response);
         return JSON.parseObject(response);
-    }
-
-    /**
-     * 设置名言、情话等
-     *
-     * @param data 推送数据
-     */
-    private void setSaying(JSONObject data) {
-        String content = "content";
-        JSONObject yy = getYy();
-        data.put("hitokoto", formatValue(yy.getString("hitokoto")));
-        JSONObject tianEnSentence = getTianEnSentence();
-        //天行英语一句话
-        data.put("en_sentence_en", formatValue(tianEnSentence.getString("en")));
-        data.put("en_sentence_zh", formatValue(tianEnSentence.getString("zh")));
-        //天行古代情诗
-        JSONObject tianQingShi = getTianQingShi();
-        data.put("qing_shi", formatValue(tianQingShi.getString(content)));
-        //天行土味情话
-        JSONObject tianSayLove = getTianSayLove();
-        data.put("say_love", formatValue(tianSayLove.getString(content)));
-        //天行早安心语
-        JSONObject tianZaoAn = getTianZaoAn();
-        data.put("zao_an", formatValue(tianZaoAn.getString(content)));
-        //天行彩虹屁
-        JSONObject tianCaiHongPi = getTianCaiHongPi();
-        data.put("cai_hong_pi", formatValue(tianCaiHongPi.getString(content)));
     }
 
     private JSONObject getYy() {
@@ -199,6 +224,14 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         return userRepository.findByAccount(account).orElseThrow(PreconditionUtils.newBusinessException("微信号不存在：" + account));
     }
 
+    //封装json
+    private JSONObject formatValue(Object value) {
+        JSONObject json = new JSONObject();
+        json.put("value", value);
+        json.put("color", randomColor());
+        return json;
+    }
+
     @SneakyThrows
     private Integer getAge(String birthDay) {
         if (StringUtils.isEmpty(birthDay)) {
@@ -209,14 +242,6 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         Calendar birth = Calendar.getInstance();
         birth.setTime(new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").parse(birthDay + " 00:00:00"));
         return current.get(Calendar.YEAR) - birth.get(Calendar.YEAR) + 1;
-    }
-
-    //封装json
-    private JSONObject formatValue(Object value) {
-        JSONObject json = new JSONObject();
-        json.put("value", value);
-        json.put("color", randomColor());
-        return json;
     }
 
     @SneakyThrows
