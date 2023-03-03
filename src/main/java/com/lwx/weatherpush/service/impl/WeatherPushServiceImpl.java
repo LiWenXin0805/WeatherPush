@@ -52,6 +52,7 @@ public class WeatherPushServiceImpl implements WeatherPushService {
         //生日
         setBirthday(data, user);
         //纪念日
+        setMemorialDay(data, user);
 
         //推送内容
         JSONObject pushContent = new JSONObject();
@@ -151,6 +152,10 @@ public class WeatherPushServiceImpl implements WeatherPushService {
     private void setBirthday(JSONObject data, User user) {
         data.put("self_age", formatValue(getAge(user.getBirthday())));
         data.put("self_birthday_remain", formatValue(countDown(user.getBirthday())));
+    }
+
+    private void setMemorialDay(JSONObject data, User user) {
+        data.put("memorial_day", formatValue(""));
     }
 
     /**
